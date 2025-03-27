@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <!-- Meta tags for character encoding and viewport settings -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fox Eye / Cat Eye Filter</title>
+  
+  <style>
+    /* Video element styled to cover the whole page and set as the background */
+    #video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Canvas element styled to match the video size */
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none; /* Ensures the canvas doesn't block interaction with video */
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Video element to display live camera feed -->
+  <video id="video" autoplay></video>
+  
+  <!-- Canvas element to draw face keypoints and filters on the video -->
+  <canvas id="canvas"></canvas>
+
+  <!-- Load TensorFlow.js and FaceMesh model from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/facemesh"></script>
+
+  <script>
+    // Getting references to the video and canvas elements
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Function to set up camera access and display the video stream
+    async function setupCamera() {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+
+      return new Promise((resolve) => {
+        video.onloadedmetadata = () => resolve(video); // Resolve when video metadata is loaded
+      });
+    }
+
+    // Main function to set up the camera and load the face detection model
+    async function main() {
+      await setupCamera(); // Start camera stream
+      video.play(); // Play the video feed
+      video.width = video.videoWidth; // Set the width of the video
+      video.height = video.videoHeight; // Set the height of the video
+      canvas.width = video.videoWidth; // Set the canvas width to match the video
+      canvas.height = video.videoHeight; // Set the canvas height to match the video
+
+      // Position the canvas element exactly on top of the video
+      canvas.style.width = video.width + "px";
+      canvas.style.height = video.height + "px";
+
+      // Load the FaceMesh model from TensorFlow.js
+      const model = await facemesh.load();
+      detectFace(model); // Start detecting faces
+    }
+
+    // Function to detect faces using the FaceMesh model
+    async function detectFace(model) {
+      async function render() {
+        const predictions = await model.estimateFaces(video, false); // Estimate faces on the video
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear previous drawings
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height); // Draw the current video frame on canvas
+
+        if (predictions.length > 0) { // If faces are detected
+          predictions.forEach(prediction => {
+            const keypoints = prediction.scaledMesh; // Get the face mesh keypoints
+
+            // Draw circles on each face mesh keypoint to visualize the face landmarks
+            keypoints.forEach(point => {
+              ctx.beginPath();
+              ctx.arc(point[0], point[1], 3, 0, Math.PI * 2); // Draw a small circle for each keypoint
+              ctx.fillStyle = 'orange'; // Color of the keypoint
+              ctx.fill();
+            });
+          });
+        } else {
+          showNoFaceMessage(); // Show message when no face is detected
+        }
+
+        requestAnimationFrame(render); // Continue rendering at the next frame
+      }
+
+      render(); // Start rendering faces
+    }
+
+    // Function to display a message on the canvas when no face is detected
+    function showNoFaceMessage() {
+      ctx.fillStyle = "white";
+      ctx.font = "30px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("No face detected", canvas.width / 2, canvas.height / 2); // Display text in the center of the canvas
+    }
+
+    // Start the application
+    main();
+  </script>
+
+  <!-- Information about the publisher and publication -->
+  <footer style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); font-family: Arial, sans-serif; color: white;">
+    <p>Publisher: Jiners Enoheart</p>
+    <p>Published on: 03/15/2025</p>
+  </footer>
+
+</body>
+
+</html>
